@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=vulntrack
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: pgadmin4
+    restart: unless-stopped
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=ahmedtarzout@gmail.com
+      - PGADMIN_DEFAULT_PASSWORD=azerty123
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+
+  server:
+    build: ./server
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    environment:
+      - PORT=3001
+      - JWT_SECRET=supersecret
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vulntrack
+    restart: unless-stopped
+    command: sh -c "npm install && node index.js"
+    depends_on:
+      - postgres
+    # run as root in dev to avoid volume permission issues during npm install
+
+  client:
+    build: ./client
+    ports:
+      - "5173:8080"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:3001
+    restart: unless-stopped
+    command: sh -c "npm install && npm run dev"
+    # run as root in dev to avoid volume permission issues during npm install
+
+volumes:
+  pg_data:
+  pgadmin_data:

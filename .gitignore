@@ -1,1 +1,15 @@
 node_modules
+# Build outputs
+client/dist
+
+# Local environment files
+.env
+.env.*
+
+# Uploads and generated artifacts
+uploads/
+server/result.json
+
+# OS/editor noise
+.DS_Store
+.vscode/
