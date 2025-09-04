@@ -83,5 +83,5 @@ Prérequis: Node 20, Postgres, Trivy.
 - Changez `JWT_SECRET`, les identifiants pgAdmin et toute valeur par défaut avant la production.
 
 ## Licence
-MIT
+AHMED TARZOUT
 
