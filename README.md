@@ -141,3 +141,5 @@ npm test
 ## CI Sécurité
 - Les workflows `security-pr` et `security-release` lancent Semgrep, Gitleaks et Trivy (SCA/config/image) et génèrent une SBOM CycloneDX à chaque exécution.
 - Consultez `docs/ci-security.md` pour la configuration GitHub (Code scanning, protection de branche) et la procédure de triage des alertes/faux positifs.
+
+Kick CI
