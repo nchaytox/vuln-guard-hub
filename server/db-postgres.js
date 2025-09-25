@@ -19,6 +19,9 @@ export async function connectDB({ retries = 20, delayMs = 3000 } = {}) {
             password TEXT NOT NULL,
             created_at TIMESTAMPTZ NOT NULL DEFAULT now()
           );
+          -- Optional profile columns
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;
           CREATE TABLE IF NOT EXISTS scans (
             id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -48,6 +51,8 @@ export async function connectDB({ retries = 20, delayMs = 3000 } = {}) {
           SELECT 1;
           -- Enforce case-insensitive uniqueness going forward
           CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_idx ON users ((lower(username)));
+
+          -- DAST tables removed
         `);
       } finally {
         client.release();
@@ -108,6 +113,28 @@ export async function pgListScansByUsername(username, { limit = 20, offset = 0 }
   return res.rows;
 }
 
+export async function pgGetProfile(username) {
+  const res = await getPool().query(
+    'SELECT username, email, display_name, created_at FROM users WHERE LOWER(username) = LOWER($1)',
+    [username]
+  );
+  return res.rows[0] || null;
+}
+
+export async function pgUpdateUser(username, { email, displayName, passwordHash } = {}) {
+  const fields = [];
+  const params = [];
+  let idx = 1;
+  if (typeof email !== 'undefined') { fields.push(`email = $${idx++}`); params.push(email); }
+  if (typeof displayName !== 'undefined') { fields.push(`display_name = $${idx++}`); params.push(displayName); }
+  if (typeof passwordHash !== 'undefined') { fields.push(`password = $${idx++}`); params.push(passwordHash); }
+  if (fields.length === 0) return 0;
+  params.push(username);
+  const sql = `UPDATE users SET ${fields.join(', ')} WHERE LOWER(username) = LOWER($${idx})`;
+  const res = await getPool().query(sql, params);
+  return res.rowCount || 0;
+}
+
 export async function pgListScans(username, { type, start, end, limit = 20, offset = 0 } = {}) {
   const user = await pgGetUserByUsername(username);
   if (!user) return [];
@@ -131,4 +158,40 @@ export async function pgListScans(username, { type, start, end, limit = 20, offs
   params.push(limit, offset);
   const res = await getPool().query(sql, params);
   return res.rows;
+}
+
+export async function pgListAllScans(username, { type, start, end } = {}) {
+  const user = await pgGetUserByUsername(username);
+  if (!user) return [];
+  const where = ['user_id = $1'];
+  const params = [user.id];
+  let idx = params.length + 1;
+  if (type) {
+    where.push(`type = $${idx++}`);
+    params.push(type);
+  }
+  if (start) {
+    where.push(`created_at >= $${idx++}`);
+    params.push(new Date(start));
+  }
+  if (end) {
+    where.push(`created_at <= $${idx++}`);
+    params.push(new Date(end));
+  }
+  const sql = `SELECT id, type, target, result, created_at FROM scans WHERE ${where.join(' AND ')}` +
+              `
+               ORDER BY created_at DESC`;
+  const res = await getPool().query(sql, params);
+  return res.rows;
+}
+
+
+export async function pgGetScanByIdForUser(username, id) {
+  const user = await pgGetUserByUsername(username);
+  if (!user) return null;
+  const res = await getPool().query(
+    'SELECT id, type, target, result, created_at FROM scans WHERE id = $1 AND user_id = $2',
+    [id, user.id]
+  );
+  return res.rows[0] || null;
 }

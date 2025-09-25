@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { Header } from '@/components/Header';
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
 
@@ -32,7 +33,9 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen bg-background">
+      <Header />
+      <div className="flex items-center justify-center p-4 pt-20">
       <form onSubmit={onSubmit} className="w-full max-w-sm bg-card p-6 rounded-md shadow">
         <h1 className="text-2xl font-bold mb-4 text-foreground">Login</h1>
         <div className="mb-3">
@@ -67,6 +70,7 @@ export default function Login() {
           No account? <Link to="/register" className="text-blue-600 underline">Create one</Link>
         </p>
       </form>
+      </div>
     </div>
   );
 }

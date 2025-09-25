@@ -1,0 +1,223 @@
+name: security-release
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types:
+      - published
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  semgrep-sast:
+    name: Semgrep SAST (full)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Semgrep (full ruleset)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/owasp-top-ten
+          generateSarif: true
+          sarifFile: semgrep.sarif
+          json: semgrep.json
+          audit_on: error
+
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+      - name: Upload Semgrep artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: |
+            semgrep.sarif
+            semgrep.json
+          retention-days: 45
+
+  gitleaks-history:
+    name: Gitleaks (full history)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks full history
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: >-
+            detect --no-banner --redact
+            --report-format json --report-path gitleaks-full.json
+            --exit-code 1
+
+      - name: Upload Gitleaks artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-full.json
+          path: gitleaks-full.json
+          retention-days: 45
+
+  trivy-sca:
+    name: Trivy SCA (full repo)
+    runs-on: ubuntu-latest
+    needs:
+      - semgrep-sast
+      - gitleaks-history
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Trivy database
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-release-fs-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            trivy-release-fs-${{ runner.os }}-
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.22.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: json
+          output: trivy-fs.json
+          ignore-unfixed: false
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+      - name: Upload Trivy filesystem artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs.json
+          path: trivy-fs.json
+          retention-days: 45
+
+  trivy-config:
+    name: Trivy IaC/config
+    runs-on: ubuntu-latest
+    needs:
+      - trivy-sca
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Trivy database
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-release-config-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            trivy-release-config-${{ runner.os }}-
+
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@0.22.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-config.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+      - name: Upload Trivy config SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-config.sarif
+
+      - name: Upload Trivy config artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-config.sarif
+          path: trivy-config.sarif
+          retention-days: 45
+
+  trivy-image:
+    name: Trivy container image
+    runs-on: ubuntu-latest
+    needs:
+      - trivy-config
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -t vuln-guard-server:release -f server/Dockerfile server
+
+      - name: Cache Trivy database
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-release-image-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            trivy-release-image-${{ runner.os }}-
+
+      - name: Run Trivy image scan
+        uses: aquasecurity/trivy-action@0.22.0
+        with:
+          scan-type: image
+          image-ref: vuln-guard-server:release
+          format: json
+          output: trivy-image.json
+          ignore-unfixed: false
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+      - name: Upload Trivy image artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image.json
+          path: trivy-image.json
+          retention-days: 45
+
+  sbom:
+    name: Generate & publish SBOM
+    runs-on: ubuntu-latest
+    needs:
+      - trivy-image
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate CycloneDX SBOM
+        id: sbom
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom-cyclonedx.json
+
+      - name: Upload SBOM artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx.json
+          path: sbom-cyclonedx.json
+          retention-days: 45
+
+      - name: Attach SBOM to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: sbom-cyclonedx.json

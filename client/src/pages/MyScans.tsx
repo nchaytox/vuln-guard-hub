@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Header } from '@/components/Header';
 import { exportMyScans, fetchMyScans, Scan } from '@/services/scanService';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { runTrivyScan } from '@/services/trivyService';
+import { countSeverities } from '@/lib/scanStats';
 
 export default function MyScans() {
   const [scans, setScans] = useState<Scan[]>([]);
@@ -44,23 +46,6 @@ export default function MyScans() {
     });
   }, [scans, filterType, startDate, endDate]);
 
-  function countSeverities(result: any) {
-    const counts: Record<string, number> = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
-    try {
-      const arr = Array.isArray(result) ? result : [];
-      for (const item of arr) {
-        const results = Array.isArray(item?.Results) ? item.Results : [];
-        for (const r of results) {
-          const vulns = Array.isArray(r?.Vulnerabilities) ? r.Vulnerabilities : [];
-          for (const v of vulns) {
-            const sev = String(v?.Severity || '').toUpperCase();
-            if (sev in counts) counts[sev] += 1;
-          }
-        }
-      }
-    } catch {}
-    return counts;
-  }
 
   const refresh = async () => {
     setLoading(true);
@@ -81,15 +66,17 @@ export default function MyScans() {
     try {
       await runTrivyScan(scan.target);
       await refresh();
-    } catch (e) {
-      // swallow; refresh will reflect nothing new
+    } catch (error) {
+      console.warn('Failed to re-run scan', error);
     } finally {
       setRerunLoadingId(null);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="container mx-auto px-4 py-8 space-y-6 pt-20">
       <Card className="shadow-card">
         <CardHeader>
           <CardTitle>My Scans</CardTitle>
@@ -108,6 +95,7 @@ export default function MyScans() {
                 <option value="all">All</option>
                 <option value="repo">Repo</option>
                 <option value="file">File</option>
+                
               </select>
             </div>
             <div>
@@ -141,7 +129,9 @@ export default function MyScans() {
                   a.click();
                   a.remove();
                   URL.revokeObjectURL(url);
-                } catch {}
+                } catch (error) {
+                  console.warn('Failed to export scans', error);
+                }
               }}>Export CSV</Button>
             </div>
           </div>
@@ -195,6 +185,7 @@ export default function MyScans() {
                                   {rerunLoadingId === s.id ? 'Re-running…' : 'Re-run'}
                                 </Button>
                               )}
+                              
                             </div>
                           </TableCell>
                         </TableRow>
@@ -214,6 +205,7 @@ export default function MyScans() {
           )}
         </CardContent>
       </Card>
+      </main>
     </div>
   );
 }

@@ -15,8 +15,8 @@ services:
     container_name: pgadmin4
     restart: unless-stopped
     environment:
-      - PGADMIN_DEFAULT_EMAIL=ahmedtarzout@gmail.com
-      - PGADMIN_DEFAULT_PASSWORD=azerty123
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-change_me}
     ports:
       - "5050:80"
     volumes:
@@ -26,15 +26,19 @@ services:
 
   server:
     build: ./server
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "3001:3001"
     volumes:
       - ./server:/app
-      - /app/node_modules
+    
     environment:
       - PORT=3001
-      - JWT_SECRET=supersecret
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/vulntrack
+      - JWT_SECRET=${JWT_SECRET:-dev_secret}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-vulntrack}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:8080}
+      - HOME=/tmp
+      - NPM_CONFIG_CACHE=/tmp/.npm
     restart: unless-stopped
     command: sh -c "npm install && node index.js"
     depends_on:
@@ -43,16 +47,19 @@ services:
 
   client:
     build: ./client
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "5173:8080"
     volumes:
       - ./client:/app
-      - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:3001
+      - HOME=/tmp
+      - NPM_CONFIG_CACHE=/tmp/.npm
     restart: unless-stopped
     command: sh -c "npm install && npm run dev"
     # run as root in dev to avoid volume permission issues during npm install
+
 
 volumes:
   pg_data:

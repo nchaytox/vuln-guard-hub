@@ -1,3 +1,4 @@
+import type { AggregatedScanStats } from '@/lib/scanStats';
 import axios from 'axios';
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
@@ -28,3 +29,13 @@ export async function exportMyScans(params?: { type?: 'repo'|'file'; start?: str
   });
   return res.data as Blob;
 }
+
+export async function fetchScanStats(params?: { type?: 'repo' | 'file'; start?: string; end?: string }): Promise<AggregatedScanStats> {
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+  const res = await axios.get(`${API_URL}/api/scans/stats`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    params,
+  });
+  return res.data as AggregatedScanStats;
+}
+

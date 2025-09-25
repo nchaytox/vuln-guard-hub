@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { extractErrorMessage } from '../lib/http';
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001';
 
@@ -12,7 +13,7 @@ export const runTrivyScan = async (repoUrl: string) => {
     );
     return response.data;
   } catch (error: any) {
-    console.error('Erreur lors du scan Trivy :', error.response?.data || error.message);
-    throw error;
+    const msg = extractErrorMessage(error);
+    throw new Error(msg);
   }
 };

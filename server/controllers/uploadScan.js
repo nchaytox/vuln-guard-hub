@@ -11,7 +11,10 @@ export const scanZipFile = (req, res) => {
   // Run Trivy filesystem scan on the uploaded file
   const args = ['fs', '--format', 'json', file.path];
 
-  execFile('trivy', args, async (error, stdout) => {
+  const timeoutMs = parseInt(process.env.TRIVY_TIMEOUT_MS || String(5 * 60 * 1000), 10);
+  const maxBuffer = (parseInt(process.env.TRIVY_MAX_BUFFER_MB || '50', 10) * 1024 * 1024);
+
+  execFile('trivy', args, { timeout: timeoutMs, maxBuffer }, async (error, stdout) => {
     const cleanup = () => {
       if (file?.path) fs.unlink(file.path, () => {});
     };
