@@ -5,6 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Use a writable cache dir inside container to avoid EACCES on bind mounts
+  cacheDir: '/tmp/.vite',
   server: {
     host: "::",
     port: 8080,

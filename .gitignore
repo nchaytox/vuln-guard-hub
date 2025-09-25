@@ -1,6 +1,7 @@
 node_modules
 # Build outputs
 client/dist
+client/.vite/
 
 # Local environment files
 .env

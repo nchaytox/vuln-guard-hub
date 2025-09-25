@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { runTrivyScan } from '../services/trivyService';
+import { Header } from '@/components/Header';
 
 export default function ScanPage() {
   const [repoUrl, setRepoUrl] = useState('');
@@ -19,7 +20,9 @@ export default function ScanPage() {
   };
 
   return (
-    <div className="p-4">
+    <div className="min-h-screen bg-background">
+      <Header />
+      <div className="p-4 pt-20">
       <h2 className="text-xl font-bold mb-4">Scanner un repo GitHub avec Trivy</h2>
       <input
         type="text"
@@ -39,6 +42,7 @@ export default function ScanPage() {
           {JSON.stringify(result, null, 2)}
         </pre>
       )}
+      </div>
     </div>
   );
 }

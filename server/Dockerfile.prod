@@ -1,0 +1,35 @@
+FROM node:20-bullseye AS deps
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+FROM node:20-bullseye-slim AS tools
+ARG DEBIAN_FRONTEND=noninteractive
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends ca-certificates curl gnupg lsb-release; \
+    install -d -m 0755 /etc/apt/keyrings; \
+    curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor -o /etc/apt/keyrings/trivy.gpg; \
+    echo "deb [signed-by=/etc/apt/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" > /etc/apt/sources.list.d/trivy.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends trivy; \
+    rm -rf /var/lib/apt/lists/*
+
+FROM node:20-bullseye-slim
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Create non-root user
+RUN groupadd -r nodejs && useradd -r -g nodejs nodejs
+
+# Copy runtime deps and app
+COPY --from=deps /app/node_modules /app/node_modules
+COPY . .
+
+# Copy trivy binary from stage
+COPY --from=tools /usr/bin/trivy /usr/bin/trivy
+
+USER nodejs
+EXPOSE 3001
+CMD ["node", "index.js"]

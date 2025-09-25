@@ -65,7 +65,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className="container mx-auto px-4 py-8 space-y-8 pt-20">
         <div className="text-center space-y-4">
           <h2 className="text-3xl font-bold text-foreground">
             Secure Your Dependencies

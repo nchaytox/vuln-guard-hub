@@ -9,37 +9,8 @@ import Register from "./pages/Register";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import MyScans from "./pages/MyScans";
 import NotFound from "./pages/NotFound";
-
-import { VulnerabilityProvider, useVulnerability } from './context/VulnerabilityContext';
-
-const VulnerabilityList = () => {
-  const { vulnerabilities, loading } = useVulnerability();
-
-  if (loading) return <p className="text-center text-gray-500">Loading vulnerabilities...</p>;
-
-  return (
-    <div className="p-6">
-      <h2 className="text-xl font-bold mb-4">Detected Vulnerabilities</h2>
-      <ul className="space-y-4">
-        {vulnerabilities.map(vuln => (
-          <li key={vuln.id} className="border p-4 rounded shadow">
-            <h3 className="font-semibold">{vuln.packageName}</h3>
-            <p className="text-sm">{vuln.description}</p>
-            <span className={`px-2 py-1 rounded text-white text-xs ${
-              vuln.severity === 'CRITICAL' ? 'bg-red-800' :
-              vuln.severity === 'HIGH' ? 'bg-red-500' :
-              vuln.severity === 'MEDIUM' ? 'bg-yellow-400' : 'bg-green-500'
-            }`}>
-              {vuln.severity}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
-
-
+import Profile from "./pages/Profile";
+import RiskDashboard from "./pages/RiskDashboard";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +24,8 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/scans" element={<ProtectedRoute><MyScans /></ProtectedRoute>} />
+          <Route path="/risk-dashboard" element={<ProtectedRoute><RiskDashboard /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

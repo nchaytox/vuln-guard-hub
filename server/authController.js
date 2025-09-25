@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { pgGetUserByUsername, pgCreateUser } from './db-postgres.js';
+import { pgGetUserByUsername, pgCreateUser, pgGetProfile, pgUpdateUser } from './db-postgres.js';
 
 export const login = async (req, res) => {
   const rawUsername = String(req.body?.username ?? '');
@@ -46,5 +46,31 @@ export const register = async (req, res) => {
       return res.status(409).json({ error: 'User already exists' });
     }
     return res.status(500).json({ error: 'Registration failed' });
+  }
+};
+
+export const me = async (req, res) => {
+  const username = req.user?.username;
+  if (!username) return res.status(401).json({ error: 'Unauthorized' });
+  const profile = await pgGetProfile(username);
+  if (!profile) return res.status(404).json({ error: 'User not found' });
+  return res.json(profile);
+};
+
+export const updateMe = async (req, res) => {
+  const username = req.user?.username;
+  if (!username) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const { email, displayName, password } = req.body || {};
+    let passwordHash;
+    if (typeof password === 'string' && password.length > 0) {
+      passwordHash = await bcrypt.hash(password, 10);
+    }
+    const changed = await pgUpdateUser(username, { email, displayName, passwordHash });
+    if (changed === 0) return res.status(400).json({ error: 'No changes applied' });
+    const profile = await pgGetProfile(username);
+    return res.json(profile);
+  } catch (e) {
+    return res.status(500).json({ error: 'Update failed' });
   }
 };
