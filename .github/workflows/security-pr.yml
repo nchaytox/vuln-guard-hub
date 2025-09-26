@@ -51,31 +51,31 @@ jobs:
             semgrep.json
           retention-days: 30
 
-  gitleaks-diff:
-    name: Gitleaks (diff)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    gitleaks-diff:
+      name: Gitleaks (diff)
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
 
-      - name: Run Gitleaks on PR diff
-        id: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          args: >-
-            detect --no-banner --redact
-            --report-format json --report-path gitleaks.json
-            --exit-code 1
-            --log-opts "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+        - name: Run Gitleaks on PR diff
+          id: gitleaks
+          uses: gitleaks/gitleaks-action@v2
+          env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"         # optionnel : pas de commentaire auto sur la PR
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "true"   # optionnel : l’action joindra son artefact (SARIF)
 
-      - name: Upload Gitleaks report
-        uses: actions/upload-artifact@v4
-        with:
-          name: gitleaks.json
-          path: gitleaks.json
-          retention-days: 30
+        - name: Upload Gitleaks report (JSON)
+          if: ${{ hashFiles('gitleaks.json') != '' }}
+          uses: actions/upload-artifact@v4
+          with:
+            name: gitleaks.json
+            path: gitleaks.json
+            retention-days: 30
+
 
   trivy-sca:
     name: Trivy SCA (filesystem)
