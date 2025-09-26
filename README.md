@@ -127,7 +127,7 @@ Les images sont publiées sous `ghcr.io/<owner>/vulnguard-server` et `ghcr.io/<o
 Assurez-vous que le repo a les permissions packages:write (défaut) et, si besoin, définissez `VITE_API_URL` comme variable GitHub Actions (Repository → Settings → Variables → Actions).
 
 ## Licence
-AHMED TARZOUT
+AHMED 
 ## Tests (serveur)
 
 Des tests de validation et sécurité basiques sont fournis (Jest + Supertest).
